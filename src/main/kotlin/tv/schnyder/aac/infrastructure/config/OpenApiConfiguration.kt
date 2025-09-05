@@ -15,7 +15,7 @@ open class OpenApiConfiguration {
             .info(
                 Info()
                     .title("Architecture as Code Engine API")
-                    .description("REST API for managing architecture models using PKL configuration files")
+                    .description("REST API for managing architecture models")
                     .version("v1.0.0"),
             )
 }

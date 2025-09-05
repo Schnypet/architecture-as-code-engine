@@ -1,7 +1,11 @@
 package tv.schnyder.aac.application.service
 
 import org.springframework.stereotype.Service
-import tv.schnyder.aac.domain.model.*
+import tv.schnyder.aac.domain.model.Application
+import tv.schnyder.aac.domain.model.ApplicationService
+import tv.schnyder.aac.domain.model.Architecture
+import tv.schnyder.aac.domain.model.BusinessCapability
+import tv.schnyder.aac.domain.model.Relationship
 import tv.schnyder.aac.domain.port.ValidationResult
 import tv.schnyder.aac.domain.service.ArchitectureService
 
@@ -13,12 +17,6 @@ class ArchitectureApplicationService(
 
     fun getArchitectureById(id: String): Architecture? = architectureService.getArchitecture(id)
 
-    fun createArchitecture(architecture: Architecture): Architecture = architectureService.saveArchitecture(architecture)
-
-    fun updateArchitecture(architecture: Architecture): Architecture = architectureService.saveArchitecture(architecture)
-
-    fun deleteArchitecture(id: String): Boolean = architectureService.deleteArchitecture(id)
-
     fun validateArchitecture(architecture: Architecture): ValidationResult = architectureService.validateArchitecture(architecture)
 
     fun getBusinessCapabilities(architectureId: String): List<BusinessCapability> =
@@ -29,9 +27,7 @@ class ArchitectureApplicationService(
     fun getApplicationServices(architectureId: String): List<ApplicationService> =
         architectureService.findApplicationServices(architectureId)
 
-
-    fun getRelationships(architectureId: String): List<Relationship> =
-        architectureService.findRelationships(architectureId)
+    fun getRelationships(architectureId: String): List<Relationship> = architectureService.findRelationships(architectureId)
 
     fun getRelationshipsForElement(
         architectureId: String,

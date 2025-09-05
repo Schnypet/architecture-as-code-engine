@@ -8,11 +8,16 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import tv.schnyder.aac.application.service.ArchitectureApplicationService
-import tv.schnyder.aac.domain.model.*
+import tv.schnyder.aac.domain.model.BusinessActor
+import tv.schnyder.aac.domain.model.BusinessCapability
+import tv.schnyder.aac.domain.model.BusinessDomain
+import tv.schnyder.aac.domain.model.BusinessLayer
+import tv.schnyder.aac.domain.model.BusinessProcess
+import tv.schnyder.aac.domain.model.BusinessService
 
 @RestController
 @RequestMapping("/api/v1/architectures/{architectureId}/business")
-@Tag(name = "Business Layer", description = "Business layer operations for PKL-loaded architecture models")
+@Tag(name = "Business Layer", description = "Business layer operations for architecture models")
 class BusinessLayerController(
     private val architectureApplicationService: ArchitectureApplicationService,
 ) {
@@ -192,42 +197,6 @@ class BusinessLayerController(
                     ?: return ResponseEntity.notFound().build()
 
             ResponseEntity.ok(actor)
-        } catch (e: Exception) {
-            ResponseEntity.internalServerError().build()
-        }
-    }
-
-    @GetMapping("/actors/by-type/{actorType}")
-    @Operation(
-        summary = "Get business actors by type",
-        description = "Retrieve business actors filtered by actor type (INTERNAL, EXTERNAL, PARTNER)",
-    )
-    @ApiResponses(
-        value = [
-            ApiResponse(responseCode = "200", description = "Successfully retrieved business actors"),
-            ApiResponse(responseCode = "404", description = "Architecture not found"),
-            ApiResponse(responseCode = "400", description = "Invalid actor type"),
-            ApiResponse(responseCode = "500", description = "Internal server error"),
-        ],
-    )
-    fun getBusinessActorsByType(
-        @Parameter(description = "Architecture ID") @PathVariable architectureId: String,
-        @Parameter(description = "Actor Type") @PathVariable actorType: String,
-    ): ResponseEntity<List<BusinessActor>> {
-        return try {
-            val architecture =
-                architectureApplicationService.getArchitectureById(architectureId)
-                    ?: return ResponseEntity.notFound().build()
-
-            val type =
-                try {
-                    ActorType.valueOf(actorType.uppercase())
-                } catch (e: IllegalArgumentException) {
-                    return ResponseEntity.badRequest().build()
-                }
-
-            val filteredActors = architecture.businessLayer.actors.filter { it.actorType == type }
-            ResponseEntity.ok(filteredActors)
         } catch (e: Exception) {
             ResponseEntity.internalServerError().build()
         }

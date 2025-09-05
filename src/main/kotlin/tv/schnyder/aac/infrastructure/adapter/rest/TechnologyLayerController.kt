@@ -8,11 +8,17 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import tv.schnyder.aac.application.service.ArchitectureApplicationService
-import tv.schnyder.aac.domain.model.*
+import tv.schnyder.aac.domain.model.Artifact
+import tv.schnyder.aac.domain.model.SystemSoftware
+import tv.schnyder.aac.domain.model.TechnologyInterface
+import tv.schnyder.aac.domain.model.TechnologyLayer
+import tv.schnyder.aac.domain.model.TechnologyNode
+import tv.schnyder.aac.domain.model.TechnologyNodeType
+import tv.schnyder.aac.domain.model.TechnologyService
 
 @RestController
 @RequestMapping("/api/v1/architectures/{architectureId}/technology")
-@Tag(name = "Technology Layer", description = "Technology layer operations for PKL-loaded architecture models")
+@Tag(name = "Technology Layer", description = "Technology layer operations for architecture models")
 class TechnologyLayerController(
     private val architectureApplicationService: ArchitectureApplicationService,
 ) {
@@ -196,77 +202,4 @@ class TechnologyLayerController(
             ResponseEntity.internalServerError().build()
         }
     }
-
-    @GetMapping("/nodes/by-type/{nodeType}")
-    @Operation(
-        summary = "Get technology nodes by type",
-        description = "Retrieve technology nodes filtered by type (SERVER, NETWORK, STORAGE, CLIENT, CLOUD)",
-    )
-    @ApiResponses(
-        value = [
-            ApiResponse(responseCode = "200", description = "Successfully retrieved technology nodes"),
-            ApiResponse(responseCode = "404", description = "Architecture not found"),
-            ApiResponse(responseCode = "400", description = "Invalid node type"),
-            ApiResponse(responseCode = "500", description = "Internal server error"),
-        ],
-    )
-    fun getTechnologyNodesByType(
-        @Parameter(description = "Architecture ID") @PathVariable architectureId: String,
-        @Parameter(description = "Node Type") @PathVariable nodeType: String,
-    ): ResponseEntity<List<TechnologyNode>> {
-        return try {
-            val architecture =
-                architectureApplicationService.getArchitectureById(architectureId)
-                    ?: return ResponseEntity.notFound().build()
-
-            val type =
-                try {
-                    TechnologyNodeType.valueOf(nodeType.uppercase())
-                } catch (e: IllegalArgumentException) {
-                    return ResponseEntity.badRequest().build()
-                }
-
-            val filteredNodes = architecture.technologyLayer.nodes.filter { it.nodeType == type }
-            ResponseEntity.ok(filteredNodes)
-        } catch (e: Exception) {
-            ResponseEntity.internalServerError().build()
-        }
-    }
-
-    @GetMapping("/services/by-category/{serviceCategory}")
-    @Operation(
-        summary = "Get technology services by category",
-        description = "Retrieve technology services filtered by category (COMPUTE, STORAGE, NETWORK, SECURITY, MONITORING)",
-    )
-    @ApiResponses(
-        value = [
-            ApiResponse(responseCode = "200", description = "Successfully retrieved technology services"),
-            ApiResponse(responseCode = "404", description = "Architecture not found"),
-            ApiResponse(responseCode = "400", description = "Invalid service category"),
-            ApiResponse(responseCode = "500", description = "Internal server error"),
-        ],
-    )
-    fun getTechnologyServicesByCategory(
-        @Parameter(description = "Architecture ID") @PathVariable architectureId: String,
-        @Parameter(description = "Service Category") @PathVariable serviceCategory: String,
-    ): ResponseEntity<List<TechnologyService>> {
-        return try {
-            val architecture =
-                architectureApplicationService.getArchitectureById(architectureId)
-                    ?: return ResponseEntity.notFound().build()
-
-            val category =
-                try {
-                    TechnologyServiceCategory.valueOf(serviceCategory.uppercase())
-                } catch (e: IllegalArgumentException) {
-                    return ResponseEntity.badRequest().build()
-                }
-
-            val filteredServices = architecture.technologyLayer.services.filter { it.serviceCategory == category }
-            ResponseEntity.ok(filteredServices)
-        } catch (e: Exception) {
-            ResponseEntity.internalServerError().build()
-        }
-    }
-
 }

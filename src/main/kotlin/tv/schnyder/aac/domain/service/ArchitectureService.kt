@@ -1,6 +1,12 @@
 package tv.schnyder.aac.domain.service
 
-import tv.schnyder.aac.domain.model.*
+import tv.schnyder.aac.domain.model.Application
+import tv.schnyder.aac.domain.model.ApplicationService
+import tv.schnyder.aac.domain.model.Architecture
+import tv.schnyder.aac.domain.model.ArchitectureUid
+import tv.schnyder.aac.domain.model.BusinessCapability
+import tv.schnyder.aac.domain.model.ElementUid
+import tv.schnyder.aac.domain.model.Relationship
 import tv.schnyder.aac.domain.port.ArchitectureRepository
 import tv.schnyder.aac.domain.port.ModelLoader
 import tv.schnyder.aac.domain.port.ValidationResult
@@ -46,7 +52,6 @@ class ArchitectureService(
                 ?: return emptyList()
         return architecture.applicationLayer.services
     }
-
 
     fun findRelationships(architectureUid: ArchitectureUid): List<Relationship> {
         val architecture =
