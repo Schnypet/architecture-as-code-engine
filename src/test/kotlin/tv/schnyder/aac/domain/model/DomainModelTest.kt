@@ -116,15 +116,110 @@ class DomainModelTest {
         val relationship =
             Relationship(
                 uid = "REL01",
+                relationshipType = RelationshipType.SERVING,
                 description = "Customer uses portal",
                 source = "BA01",
                 target = "APP01",
-                properties = mapOf("type" to "uses"),
+                metadata = mapOf("type" to "uses"),
             )
 
         assertEquals("REL01", relationship.uid)
+        assertEquals(RelationshipType.SERVING, relationship.relationshipType)
         assertEquals("Customer uses portal", relationship.description)
         assertEquals("BA01", relationship.source)
         assertEquals("APP01", relationship.target)
+        assertEquals(RelationshipCategory.DEPENDENCY, relationship.category)
+    }
+
+    @Test
+    fun `Relationship categories should be correctly assigned`() {
+        // Test structural relationships
+        val composition =
+            Relationship(
+                uid = "REL02",
+                relationshipType = RelationshipType.COMPOSITION,
+                source = "parent",
+                target = "child",
+            )
+        assertEquals(RelationshipCategory.STRUCTURAL, composition.category)
+        assertEquals(5, composition.strength) // Strongest structural relationship
+
+        // Test dynamic relationships
+        val flow =
+            Relationship(
+                uid = "REL03",
+                relationshipType = RelationshipType.FLOW,
+                source = "process1",
+                target = "process2",
+                flowType = FlowType.INFORMATION,
+            )
+        assertEquals(RelationshipCategory.DYNAMIC, flow.category)
+        assertEquals(0, flow.strength) // Non-structural
+        assertTrue(flow.isValid()) // Has required flowType
+
+        // Test access relationship
+        val access =
+            Relationship(
+                uid = "REL04",
+                relationshipType = RelationshipType.ACCESS,
+                source = "component",
+                target = "database",
+                accessType = AccessType.READ_WRITE,
+            )
+        assertEquals(RelationshipCategory.DEPENDENCY, access.category)
+        assertTrue(access.isValid()) // Has required accessType
+    }
+
+    @Test
+    fun `Structural relationships should have correct strength ordering`() {
+        val association = Relationship(uid = "REL01", relationshipType = RelationshipType.ASSOCIATION, source = "A", target = "B")
+        val assignment = Relationship(uid = "REL02", relationshipType = RelationshipType.ASSIGNMENT, source = "A", target = "B")
+        val realization = Relationship(uid = "REL03", relationshipType = RelationshipType.REALIZATION, source = "A", target = "B")
+        val aggregation = Relationship(uid = "REL04", relationshipType = RelationshipType.AGGREGATION, source = "A", target = "B")
+        val composition = Relationship(uid = "REL05", relationshipType = RelationshipType.COMPOSITION, source = "A", target = "B")
+
+        assertTrue(association.strength < assignment.strength)
+        assertTrue(assignment.strength < realization.strength)
+        assertTrue(realization.strength < aggregation.strength)
+        assertTrue(aggregation.strength < composition.strength)
+    }
+
+    @Test
+    fun `Relationship validation should work correctly`() {
+        // Valid flow relationship
+        val validFlow =
+            Relationship(
+                uid = "REL01",
+                relationshipType = RelationshipType.FLOW,
+                source = "A",
+                target = "B",
+                flowType = FlowType.DATA,
+            )
+        assertTrue(validFlow.isValid())
+
+        // Invalid flow relationship (missing flowType)
+        val invalidFlow =
+            Relationship(
+                uid = "REL02",
+                relationshipType = RelationshipType.FLOW,
+                source = "A",
+                target = "B",
+            )
+        assertFalse(invalidFlow.isValid())
+
+        // Valid access relationship
+        val validAccess =
+            Relationship(
+                uid = "REL03",
+                relationshipType = RelationshipType.ACCESS,
+                source = "A",
+                target = "B",
+                accessType = AccessType.READ,
+            )
+        assertTrue(validAccess.isValid())
+
+        // Other relationship types should be valid without extra fields
+        val serving = Relationship(uid = "REL04", relationshipType = RelationshipType.SERVING, source = "A", target = "B")
+        assertTrue(serving.isValid())
     }
 }

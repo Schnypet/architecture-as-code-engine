@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -12,16 +13,22 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import tv.schnyder.aac.application.service.ArchitectureApplicationService
+import tv.schnyder.aac.domain.model.AccessType
 import tv.schnyder.aac.domain.model.Architecture
+import tv.schnyder.aac.domain.model.FlowType
+import tv.schnyder.aac.domain.model.RelationshipCategory
+import tv.schnyder.aac.domain.model.RelationshipType
 import tv.schnyder.aac.domain.port.ValidationResult
+import tv.schnyder.aac.domain.service.RelationshipValidationService
 
 @RestController
 @RequestMapping("/api/v1/architectures")
 @Tag(name = "Architecture", description = "Architecture model operations")
 class ArchitectureController(
     private val architectureApplicationService: ArchitectureApplicationService,
+    private val relationshipValidationService: RelationshipValidationService,
 ) {
-    @GetMapping
+    @GetMapping(produces = [MediaType.APPLICATION_JSON_VALUE])
     @Operation(summary = "Get all architectures", description = "Retrieve all architecture models")
     @ApiResponses(
         value = [
@@ -32,12 +39,15 @@ class ArchitectureController(
     fun getAllArchitectures(): ResponseEntity<List<Architecture>> =
         try {
             val architectures = architectureApplicationService.getAllArchitectures()
-            ResponseEntity.ok(architectures)
+            ResponseEntity
+                .ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(architectures)
         } catch (e: Exception) {
             ResponseEntity.internalServerError().build()
         }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id}", produces = [MediaType.APPLICATION_JSON_VALUE])
     @Operation(summary = "Get architecture by ID", description = "Retrieve a specific architecture by its ID")
     @ApiResponses(
         value = [
@@ -51,7 +61,12 @@ class ArchitectureController(
     ): ResponseEntity<Architecture> =
         try {
             val architecture = architectureApplicationService.getArchitectureById(id)
-            architecture?.let { ResponseEntity.ok(it) } ?: ResponseEntity.notFound().build()
+            architecture?.let {
+                ResponseEntity
+                    .ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(it)
+            } ?: ResponseEntity.notFound().build()
         } catch (e: Exception) {
             ResponseEntity.internalServerError().build()
         }

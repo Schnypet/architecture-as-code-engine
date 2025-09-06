@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration
 import tv.schnyder.aac.domain.port.ArchitectureRepository
 import tv.schnyder.aac.domain.port.ModelLoader
 import tv.schnyder.aac.domain.service.ArchitectureService
+import tv.schnyder.aac.domain.service.RelationshipValidationService
 
 @Configuration
 open class DomainConfiguration {
@@ -13,4 +14,7 @@ open class DomainConfiguration {
         architectureRepository: ArchitectureRepository,
         modelLoader: ModelLoader,
     ): ArchitectureService = ArchitectureService(architectureRepository, modelLoader)
+
+    @Bean
+    open fun relationshipValidationService(): RelationshipValidationService = RelationshipValidationService()
 }

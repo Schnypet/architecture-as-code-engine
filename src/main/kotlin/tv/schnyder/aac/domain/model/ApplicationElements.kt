@@ -15,8 +15,7 @@ data class ApplicationComponent(
     val uid: ElementUid,
     val name: String,
     val description: String? = null,
-    val documentation: String? = null,
-    val properties: Map<String, String> = emptyMap(),
+    val metadata: Map<String, String> = emptyMap(),
     val componentType: ApplicationComponentType,
     val technology: String? = null,
 )
@@ -25,16 +24,14 @@ data class ApplicationService(
     val uid: ElementUid,
     val name: String,
     val description: String? = null,
-    val documentation: String? = null,
-    val properties: Map<String, String> = emptyMap(),
+    val metadata: Map<String, String> = emptyMap(),
 )
 
 data class ApplicationInterface(
     val uid: ElementUid,
     val name: String,
     val description: String? = null,
-    val documentation: String? = null,
-    val properties: Map<String, String> = emptyMap(),
+    val metadata: Map<String, String> = emptyMap(),
     val interfaceType: ApplicationInterfaceType,
     val format: String? = null,
 )

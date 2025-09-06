@@ -45,29 +45,12 @@ class PklModelLoader : ModelLoader {
 
             // Create merged architecture from all models
             val architecture = mapper.mergeModelsToArchitecture(businessModels, applicationModels, technologyModels)
+            logger.info("Found ${architecture.applicationLayer.applications.size} ")
             listOf(architecture)
         } catch (e: Exception) {
             logger.error("Failed to load architecture models", e)
             // Return empty list instead of sample to avoid confusion
             emptyList()
-        }
-    }
-
-    override fun loadArchitectureModel(path: String): Architecture? {
-        logger.info("Loading architecture model from: $path")
-
-        return try {
-            val resource = resourcePatternResolver.getResource(path)
-            if (!resource.exists()) {
-                logger.warn("PKL model file not found: $path")
-                return null
-            }
-
-            val pklData = parsePklFile(resource)
-            mapper.mapToArchitecture(pklData)
-        } catch (e: Exception) {
-            logger.error("Failed to load architecture model from: $path", e)
-            null
         }
     }
 
@@ -131,22 +114,7 @@ class PklModelLoader : ModelLoader {
             result["_module"] = moduleMatcher.group(1)
         }
 
-        // Parse simple object declarations (local declarations)
-        val objectPattern = Pattern.compile("local\\s+(\\w+):\\s*(\\w+)\\s*=\\s*new\\s*\\{([^}]+)\\}")
-        val objectMatcher = objectPattern.matcher(content)
         val objects = mutableListOf<Map<String, Any>>()
-
-        while (objectMatcher.find()) {
-            val objectName = objectMatcher.group(1)
-            val objectType = objectMatcher.group(2)
-            val objectBody = objectMatcher.group(3)
-
-            val objectData = parseObjectBody(objectBody)
-            objectData["_name"] = objectName
-            objectData["_type"] = objectType
-
-            objects.add(objectData)
-        }
 
         // Parse top-level object declarations (without local keyword)
         val topLevelPattern = Pattern.compile("(\\w+):\\s*(\\w+)\\s*=\\s*new\\s*\\{([^}]+)\\}")

@@ -5,8 +5,6 @@ import tv.schnyder.aac.domain.model.Architecture
 interface ModelLoader {
     fun loadArchitectureModels(): List<Architecture>
 
-    fun loadArchitectureModel(path: String): Architecture?
-
     fun validateModel(architecture: Architecture): ValidationResult
 }
 

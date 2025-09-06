@@ -1,19 +1,18 @@
 package tv.schnyder.aac.infrastructure.adapter.pkl
 
-import tv.schnyder.aac.domain.model.*
 import org.slf4j.LoggerFactory
+import tv.schnyder.aac.domain.model.*
 
 class PklToKotlinMapper {
-
     private val logger = LoggerFactory.getLogger(PklToKotlinMapper::class.java)
 
     fun mapToArchitecture(pklModel: Map<String, Any>): Architecture {
         logger.debug("Mapping PKL model to Architecture domain model")
-        
+
         val objects = pklModel["objects"] as? List<Map<String, Any>> ?: emptyList()
         val relationships = pklModel["relationships"] as? List<Map<String, Any>> ?: emptyList()
         val moduleName = pklModel["_module"] as? String ?: "Unknown"
-        
+
         return Architecture(
             uid = "arch-$moduleName",
             name = "$moduleName Architecture",
@@ -23,46 +22,68 @@ class PklToKotlinMapper {
             applicationLayer = extractApplicationLayer(objects),
             technologyLayer = extractTechnologyLayer(objects),
             relationships = extractRelationships(relationships),
-            metadata = mapOf("source" to (pklModel["_source"] ?: "unknown"))
+            metadata = mapOf("source" to (pklModel["_source"] ?: "unknown")),
         )
     }
 
     fun mergeModelsToArchitecture(
         businessModels: List<Map<String, Any>>,
         applicationModels: List<Map<String, Any>>,
-        technologyModels: List<Map<String, Any>>
+        technologyModels: List<Map<String, Any>>,
     ): Architecture {
         logger.debug("Merging PKL models to Architecture domain model")
-        
+
         val allObjects = mutableListOf<Map<String, Any>>()
         val allRelationships = mutableListOf<Map<String, Any>>()
         val sourceFiles = mutableListOf<String>()
-        
+
         // Collect all objects and relationships from all models
         listOf(businessModels, applicationModels, technologyModels).flatten().forEach { model ->
             val objects = model["objects"] as? List<Map<String, Any>> ?: emptyList()
             val relationships = model["relationships"] as? List<Map<String, Any>> ?: emptyList()
-            
+
             allObjects.addAll(objects)
             allRelationships.addAll(relationships)
-            
+
             model["_source"]?.let { sourceFiles.add(it.toString()) }
         }
-        
+
+        // Enhance relationships
+        val enhancedRelationships = mutableListOf<Map<String, Any>>()
+        allRelationships.forEach { obj ->
+            val sourceName = (obj["source"] as? String)?.substringAfter(".")
+            val targetName = (obj["target"] as? String)?.substringAfter(".")
+            val sourceUid = allObjects.find { it["_name"] == sourceName }?.get("uid")
+            val targetUid = allObjects.find { it["_name"] == targetName }?.get("uid")
+
+            if (sourceUid != null && targetUid != null) {
+                val relationshipObj = mutableMapOf<String, Any>()
+                relationshipObj.putAll(obj as Map<String, Any>)
+                relationshipObj["source"] = sourceUid
+                relationshipObj["target"] = targetUid
+                enhancedRelationships.add(relationshipObj)
+            } else {
+                logger.warn(
+                    "Relationship ${obj["_name"]} konnte nicht aufgelöst werden: source $sourceUid ($sourceName}) oder target $targetUid ($targetName) fehlt.",
+                )
+            }
+        }
+
         return Architecture(
-            uid = "merged-architecture",
-            name = "Merged Architecture",
-            description = "Architecture merged from PKL models: ${sourceFiles.joinToString(", ")}",
+            uid = "1",
+            name = "Enterprise Architecture",
+            description = "Architecture merged from models: ${sourceFiles.joinToString(", ")}",
             version = "1.0.0",
             businessLayer = extractBusinessLayer(allObjects),
             applicationLayer = extractApplicationLayer(allObjects),
             technologyLayer = extractTechnologyLayer(allObjects),
-            relationships = extractRelationships(allRelationships),
-            metadata = mapOf(
-                "sources" to sourceFiles,
-                "totalObjects" to allObjects.size,
-                "totalRelationships" to allRelationships.size
-            )
+            relationships = extractRelationships(enhancedRelationships),
+            metadata =
+                mapOf(
+                    "sources" to sourceFiles,
+                    "totalObjects" to allObjects.size,
+                    "totalRelationships" to allRelationships.size,
+                ),
         )
     }
 
@@ -72,7 +93,7 @@ class PklToKotlinMapper {
         val actors = mutableListOf<BusinessActor>()
         val processes = mutableListOf<BusinessProcess>()
         val services = mutableListOf<BusinessService>()
-        
+
         objects.forEach { obj ->
             when (obj["_type"]) {
                 "BusinessDomain" -> mapBusinessDomain(obj)?.let { domains.add(it) }
@@ -82,16 +103,18 @@ class PklToKotlinMapper {
                 "BusinessService" -> mapBusinessService(obj)?.let { services.add(it) }
             }
         }
-        
-        logger.debug("Extracted business layer: ${domains.size} domains, ${capabilities.size} capabilities, ${actors.size} actors, ${processes.size} processes, ${services.size} services")
-        
+
+        logger.debug(
+            "Extracted business layer: ${domains.size} domains, ${capabilities.size} capabilities, ${actors.size} actors, ${processes.size} processes, ${services.size} services",
+        )
+
         return BusinessLayer(
             uid = "business-layer",
             domains = domains,
             capabilities = capabilities,
             actors = actors,
             processes = processes,
-            services = services
+            services = services,
         )
     }
 
@@ -100,7 +123,7 @@ class PklToKotlinMapper {
         val components = mutableListOf<ApplicationComponent>()
         val services = mutableListOf<ApplicationService>()
         val interfaces = mutableListOf<ApplicationInterface>()
-        
+
         objects.forEach { obj ->
             when (obj["_type"]) {
                 "Application" -> mapApplication(obj)?.let { applications.add(it) }
@@ -109,15 +132,17 @@ class PklToKotlinMapper {
                 "ApplicationInterface" -> mapApplicationInterface(obj)?.let { interfaces.add(it) }
             }
         }
-        
-        logger.debug("Extracted application layer: ${applications.size} applications, ${components.size} components, ${services.size} services, ${interfaces.size} interfaces")
-        
+
+        logger.debug(
+            "Extracted application layer: ${applications.size} applications, ${components.size} components, ${services.size} services, ${interfaces.size} interfaces",
+        )
+
         return ApplicationLayer(
             uid = "application-layer",
             applications = applications,
             components = components,
             services = services,
-            interfaces = interfaces
+            interfaces = interfaces,
         )
     }
 
@@ -127,7 +152,7 @@ class PklToKotlinMapper {
         val artifacts = mutableListOf<Artifact>()
         val interfaces = mutableListOf<TechnologyInterface>()
         val systemSoftware = mutableListOf<SystemSoftware>()
-        
+
         objects.forEach { obj ->
             when (obj["_type"]) {
                 "TechnologyNode" -> mapTechnologyNode(obj)?.let { nodes.add(it) }
@@ -137,51 +162,50 @@ class PklToKotlinMapper {
                 "SystemSoftware" -> mapSystemSoftware(obj)?.let { systemSoftware.add(it) }
             }
         }
-        
-        logger.debug("Extracted technology layer: ${nodes.size} nodes, ${services.size} services, ${artifacts.size} artifacts, ${interfaces.size} interfaces, ${systemSoftware.size} system software")
-        
+
+        logger.debug(
+            "Extracted technology layer: ${nodes.size} nodes, ${services.size} services, ${artifacts.size} artifacts, ${interfaces.size} interfaces, ${systemSoftware.size} system software",
+        )
+
         return TechnologyLayer(
             uid = "technology-layer",
             nodes = nodes,
             services = services,
             artifacts = artifacts,
             interfaces = interfaces,
-            systemSoftware = systemSoftware
+            systemSoftware = systemSoftware,
         )
     }
 
-    private fun extractRelationships(relationshipObjects: List<Map<String, Any>>): List<Relationship> {
-        return relationshipObjects.mapNotNull { obj ->
+    private fun extractRelationships(relationshipObjects: List<Map<String, Any>>): List<Relationship> =
+        relationshipObjects.mapNotNull { obj ->
             mapRelationship(obj)
         }
-    }
 
     // Business Layer Mappers
     private fun mapBusinessDomain(obj: Map<String, Any>): BusinessDomain? {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
-        
+
         return BusinessDomain(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"])
+            metadata = extractStringMap(obj["metadata"]),
         )
     }
 
     private fun mapBusinessCapability(obj: Map<String, Any>): BusinessCapability? {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
-        
+
         return BusinessCapability(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             level = obj["level"] as? Int,
-            parentCapability = (obj["parentCapability"] as? String)?.let { it }
+            parentCapability = (obj["parentCapability"] as? String)?.let { it },
         )
     }
 
@@ -189,20 +213,20 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val actorTypeStr = obj["actorType"] as? String ?: "Internal"
-        
-        val actorType = try {
-            ActorType.valueOf(actorTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ActorType.INTERNAL
-        }
-        
+
+        val actorType =
+            try {
+                ActorType.valueOf(actorTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ActorType.INTERNAL
+            }
+
         return BusinessActor(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
-            actorType = actorType
+            metadata = extractStringMap(obj["metadata"]),
+            actorType = actorType,
         )
     }
 
@@ -210,38 +234,37 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val processTypeStr = obj["processType"] as? String ?: "Core"
-        
-        val processType = try {
-            ProcessType.valueOf(processTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ProcessType.CORE
-        }
-        
+
+        val processType =
+            try {
+                ProcessType.valueOf(processTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ProcessType.CORE
+            }
+
         return BusinessProcess(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             processType = processType,
             owner = (obj["owner"] as? String)?.let { it },
             inputs = extractStringList(obj["inputs"]),
-            outputs = extractStringList(obj["outputs"])
+            outputs = extractStringList(obj["outputs"]),
         )
     }
 
     private fun mapBusinessService(obj: Map<String, Any>): BusinessService? {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
-        
+
         return BusinessService(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             serviceLevel = obj["serviceLevel"] as? String,
-            availability = obj["availability"] as? String
+            availability = obj["availability"] as? String,
         )
     }
 
@@ -251,20 +274,22 @@ class PklToKotlinMapper {
         val name = obj["name"] as? String ?: ""
         val stereoTypeStr = obj["stereoType"] as? String ?: "Business Application"
         val lifecycleStr = obj["lifecycle"] as? String ?: "Active"
-        
-        val stereoType = try {
-            val normalized = stereoTypeStr.replace(" ", "_").uppercase()
-            ApplicationStereoType.valueOf(normalized)
-        } catch (e: IllegalArgumentException) {
-            ApplicationStereoType.BUSINESS_APPLICATION
-        }
-        
-        val lifecycle = try {
-            ApplicationLifecycle.valueOf(lifecycleStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ApplicationLifecycle.ACTIVE
-        }
-        
+
+        val stereoType =
+            try {
+                val normalized = stereoTypeStr.replace(" ", "_").uppercase()
+                ApplicationStereoType.valueOf(normalized)
+            } catch (e: IllegalArgumentException) {
+                ApplicationStereoType.BUSINESS_APPLICATION
+            }
+
+        val lifecycle =
+            try {
+                ApplicationLifecycle.valueOf(lifecycleStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ApplicationLifecycle.ACTIVE
+            }
+
         return Application(
             uid = uid,
             name = name,
@@ -272,7 +297,7 @@ class PklToKotlinMapper {
             stereoType = stereoType,
             metadata = extractStringMap(obj["metadata"]),
             vendor = obj["vendor"] as? String,
-            lifecycle = lifecycle
+            lifecycle = lifecycle,
         )
     }
 
@@ -280,34 +305,33 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val componentTypeStr = obj["componentType"] as? String ?: "Backend"
-        
-        val componentType = try {
-            ApplicationComponentType.valueOf(componentTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ApplicationComponentType.BACKEND
-        }
-        
+
+        val componentType =
+            try {
+                ApplicationComponentType.valueOf(componentTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ApplicationComponentType.BACKEND
+            }
+
         return ApplicationComponent(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             componentType = componentType,
-            technology = obj["technology"] as? String
+            technology = obj["technology"] as? String,
         )
     }
 
     private fun mapApplicationService(obj: Map<String, Any>): ApplicationService? {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
-        
+
         return ApplicationService(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"])
+            metadata = extractStringMap(obj["metadata"]),
         )
     }
 
@@ -315,21 +339,21 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val interfaceTypeStr = obj["interfaceType"] as? String ?: "API"
-        
-        val interfaceType = try {
-            ApplicationInterfaceType.valueOf(interfaceTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ApplicationInterfaceType.API
-        }
-        
+
+        val interfaceType =
+            try {
+                ApplicationInterfaceType.valueOf(interfaceTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ApplicationInterfaceType.API
+            }
+
         return ApplicationInterface(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             interfaceType = interfaceType,
-            format = obj["format"] as? String
+            format = obj["format"] as? String,
         )
     }
 
@@ -338,23 +362,23 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val nodeTypeStr = obj["nodeType"] as? String ?: "Server"
-        
-        val nodeType = try {
-            TechnologyNodeType.valueOf(nodeTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            TechnologyNodeType.SERVER
-        }
-        
+
+        val nodeType =
+            try {
+                TechnologyNodeType.valueOf(nodeTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                TechnologyNodeType.SERVER
+            }
+
         return TechnologyNode(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             nodeType = nodeType,
             location = obj["location"] as? String,
             capacity = obj["capacity"] as? String,
-            operatingSystem = obj["operatingSystem"] as? String
+            operatingSystem = obj["operatingSystem"] as? String,
         )
     }
 
@@ -362,21 +386,21 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val serviceCategoryStr = obj["serviceCategory"] as? String ?: "Compute"
-        
-        val serviceCategory = try {
-            TechnologyServiceCategory.valueOf(serviceCategoryStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            TechnologyServiceCategory.COMPUTE
-        }
-        
+
+        val serviceCategory =
+            try {
+                TechnologyServiceCategory.valueOf(serviceCategoryStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                TechnologyServiceCategory.COMPUTE
+            }
+
         return TechnologyService(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             serviceCategory = serviceCategory,
-            provider = obj["provider"] as? String
+            provider = obj["provider"] as? String,
         )
     }
 
@@ -384,37 +408,36 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val artifactTypeStr = obj["artifactType"] as? String ?: "Configuration"
-        
-        val artifactType = try {
-            ArtifactType.valueOf(artifactTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            ArtifactType.CONFIGURATION
-        }
-        
+
+        val artifactType =
+            try {
+                ArtifactType.valueOf(artifactTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                ArtifactType.CONFIGURATION
+            }
+
         return Artifact(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             artifactType = artifactType,
             format = obj["format"] as? String,
-            size = obj["size"] as? String
+            size = obj["size"] as? String,
         )
     }
 
     private fun mapTechnologyInterface(obj: Map<String, Any>): TechnologyInterface? {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
-        
+
         return TechnologyInterface(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             protocol = obj["protocol"] as? String,
-            port = obj["port"] as? Int
+            port = obj["port"] as? Int,
         )
     }
 
@@ -422,60 +445,98 @@ class PklToKotlinMapper {
         val uid = obj["uid"] as? String ?: return null
         val name = obj["name"] as? String ?: ""
         val softwareTypeStr = obj["softwareType"] as? String ?: "Runtime"
-        
-        val softwareType = try {
-            SystemSoftwareType.valueOf(softwareTypeStr.uppercase())
-        } catch (e: IllegalArgumentException) {
-            SystemSoftwareType.RUNTIME
-        }
-        
+
+        val softwareType =
+            try {
+                SystemSoftwareType.valueOf(softwareTypeStr.uppercase())
+            } catch (e: IllegalArgumentException) {
+                SystemSoftwareType.RUNTIME
+            }
+
         return SystemSoftware(
             uid = uid,
             name = name,
             description = obj["description"] as? String,
-            documentation = obj["documentation"] as? String,
-            properties = extractStringMap(obj["properties"]),
+            metadata = extractStringMap(obj["metadata"]),
             softwareType = softwareType,
             vendor = obj["vendor"] as? String,
-            version = obj["version"] as? String
+            version = obj["version"] as? String,
         )
     }
 
     // Relationship Mapper
     private fun mapRelationship(obj: Map<String, Any>): Relationship? {
         val uid = obj["uid"] as? String ?: return null
-        
+        val relationshipTypeStr = obj["relationshipType"] as? String ?: obj["type"] as? String ?: "ASSOCIATION"
+
+        // Parse relationship type with fallback to ASSOCIATION
+        val relationshipType =
+            try {
+                RelationshipType.valueOf(relationshipTypeStr.uppercase().replace("-", "_"))
+            } catch (e: IllegalArgumentException) {
+                logger.debug("Unknown relationship type: $relationshipTypeStr, defaulting to ASSOCIATION")
+                RelationshipType.ASSOCIATION
+            }
+
+        // Parse optional flow type for FLOW relationships
+        val flowType =
+            if (relationshipType == RelationshipType.FLOW) {
+                val flowTypeStr = obj["flowType"] as? String ?: "INFORMATION"
+                try {
+                    FlowType.valueOf(flowTypeStr.uppercase())
+                } catch (e: IllegalArgumentException) {
+                    logger.debug("Unknown flow type: $flowTypeStr, defaulting to INFORMATION")
+                    FlowType.INFORMATION
+                }
+            } else {
+                null
+            }
+
+        // Parse optional access type for ACCESS relationships
+        val accessType =
+            if (relationshipType == RelationshipType.ACCESS) {
+                val accessTypeStr = obj["accessType"] as? String ?: "ACCESS"
+                try {
+                    AccessType.valueOf(accessTypeStr.uppercase())
+                } catch (e: IllegalArgumentException) {
+                    logger.debug("Unknown access type: $accessTypeStr, defaulting to ACCESS")
+                    AccessType.ACCESS
+                }
+            } else {
+                null
+            }
+
         return Relationship(
             uid = uid,
+            relationshipType = relationshipType,
             description = obj["description"] as? String,
             source = obj["source"] ?: "unknown",
             target = obj["target"] ?: "unknown",
-            properties = extractStringMap(obj["properties"])
+            metadata = extractStringMap(obj["metadata"]),
+            flowType = flowType,
+            accessType = accessType,
         )
     }
 
     // Helper methods
-    private fun extractStringMap(value: Any?): Map<String, String> {
-        return when (value) {
+    private fun extractStringMap(value: Any?): Map<String, String> =
+        when (value) {
             is Map<*, *> -> {
-                value.entries.mapNotNull { (k, v) ->
-                    val key = k?.toString()
-                    val val_ = v?.toString()
-                    if (key != null && val_ != null) key to val_ else null
-                }.toMap()
+                value.entries
+                    .mapNotNull { (k, v) ->
+                        val key = k?.toString()
+                        val val_ = v?.toString()
+                        if (key != null && val_ != null) key to val_ else null
+                    }.toMap()
             }
             else -> emptyMap()
         }
-    }
 
-    private fun extractStringList(value: Any?): List<String> {
-        return when (value) {
+    private fun extractStringList(value: Any?): List<String> =
+        when (value) {
             is List<*> -> value.mapNotNull { it?.toString() }
             else -> emptyList()
         }
-    }
 
-    private fun extractElementUids(value: Any?): List<ElementUid> {
-        return extractStringList(value).map { it }
-    }
+    private fun extractElementUids(value: Any?): List<ElementUid> = extractStringList(value).map { it }
 }

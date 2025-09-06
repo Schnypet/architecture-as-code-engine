@@ -70,6 +70,7 @@ The engine provides a comprehensive REST API organized around the architecture m
 - `DELETE /api/v1/architectures/{id}` - Delete architecture model
 - `POST /api/v1/architectures/{id}/validate` - Validate architecture model
 - `POST /api/v1/architectures/reload` - Reload models from PKL files
+- `GET /api/v1/architectures/relationship-types` - Get all ArchiMate relationship types and information
 
 ### Business Layer API (`/api/v1/architectures/{architectureId}/business`)
 
@@ -105,6 +106,15 @@ The engine provides a comprehensive REST API organized around the architecture m
 - `GET /nodes/by-type/{nodeType}` - Filter nodes by type
 - `GET /nodes/by-location/{location}` - Filter nodes by location
 
+### Relationships API (`/api/v1/architectures/{architectureId}/relationships`)
+
+- `GET /` - Get all relationships for an architecture
+- `GET /by-type/{relationshipType}` - Filter by ArchiMate relationship type
+- `GET /by-category/{category}` - Filter by relationship category (STRUCTURAL, DYNAMIC, DEPENDENCY, OTHER)
+- `GET /for-element/{elementId}` - Get relationships for specific element
+- `GET /structural` - Get structural relationships ordered by strength
+- `POST /validate` - Validate all relationships for ArchiMate compliance
+
 ## Domain Model
 
 The architecture engine implements a comprehensive metamodel organized in three layers:
@@ -114,7 +124,29 @@ The architecture engine implements a comprehensive metamodel organized in three 
 - **BusinessLayer**: Contains business domain elements
 - **ApplicationLayer**: Contains application portfolio elements  
 - **TechnologyLayer**: Contains technology infrastructure elements
-- **Relationships**: Connections between architecture elements across layers
+- **Relationships**: ArchiMate-compliant connections between architecture elements across layers
+
+### ArchiMate Relationship Types
+The engine supports all ArchiMate 3.1 relationship types organized by semantic categories:
+
+**Structural Relationships** (ordered by strength):
+- **Association**: Generic unspecified relationship (weakest)
+- **Assignment**: Allocation of responsibility or performance
+- **Realization**: Implementation or fulfillment of another element  
+- **Aggregation**: Collection/member relationship
+- **Composition**: Whole/part relationship with existential dependency (strongest)
+
+**Dynamic Relationships**:
+- **Triggering**: Temporal or causal dependency between behavioral elements
+- **Flow**: Transfer of information, resources, or value (with flow types: INFORMATION, VALUE, GOODS, etc.)
+
+**Dependency Relationships**:
+- **Serving**: Provides functionality to another element
+- **Access**: Behavioral elements accessing passive elements (with access types: READ, WRITE, READ_WRITE)
+- **Influence**: One element affects another
+
+**Other Relationships**:
+- **Specialization**: Generalization/specialization (is-a kind-of)
 
 ### Business Layer Elements
 - **BusinessDomain**: Strategic business areas
